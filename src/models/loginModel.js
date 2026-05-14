@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const bycryptjs = require('bcryptjs');
-
+const bcryptjs = require('bcryptjs'); // Corrigido: Removido o 'y'
 
 const LoginSchema = new mongoose.Schema({
   email: { type: String, required: true },
-  senha: { type: String, required: true }, // Mantendo 'senha' como no Schema
+  senha: { type: String, required: true },
 });
 
 const LoginModel = mongoose.model('Login', LoginSchema);
@@ -17,16 +16,35 @@ class Login {
     this.user = null;
   }
 
+  async login() {
+    this.valida();
+    if (this.errors.length > 0) return;
+
+    this.user = await LoginModel.findOne({ email: this.body.email });
+
+    if (!this.user) {
+      this.errors.push('Usuário não existe.');
+      return;
+    }
+
+    // Corrigido: Nome da variável e lógica da exclamação !
+    if (!bcryptjs.compareSync(this.body.senha, this.user.senha)) {
+      this.errors.push('Senha inválida');
+      this.user = null;
+      return;
+    }
+  }
+
   async register() {
     this.valida();
     if (this.errors.length > 0) return;
 
     await this.userExists();
-
+    if (this.errors.length > 0) return; // Importante: parar se o usuário já existir
 
     try {
-      const salt = bycryptjs.genSaltSync();
-      this.body.senha = bycryptjs.hashSync(this.body.senha, salt);
+      const salt = bcryptjs.genSaltSync();
+      this.body.senha = bcryptjs.hashSync(this.body.senha, salt);
       this.user = await LoginModel.create(this.body);
     } catch (e) {
       console.log(e);
@@ -34,20 +52,18 @@ class Login {
   }
 
   async userExists() {
-    const user = await LoginModel.findOne({ email: this.body.email});
-
-    if(user) this.errors.push('Usuário já existe.')
+    // Corrigido: Usando uma constante local para não sobrescrever o this.user antes da hora
+    const user = await LoginModel.findOne({ email: this.body.email });
+    if (user) this.errors.push('Usuário já existe.');
   }
 
   valida() {
     this.cleanUp();
 
-    // Validação do E-mail
     if (!validator.isEmail(this.body.email)) {
       this.errors.push('E-mail inválido');
     }
 
-    // CORREÇÃO AQUI: Usando 'senha' e verificando '.length'
     if (this.body.senha.length < 3 || this.body.senha.length >= 50) {
       this.errors.push('A senha precisa ter entre 3 e 50 caracteres');
     }
@@ -60,10 +76,9 @@ class Login {
       }
     }
 
-    // CORREÇÃO AQUI: O objeto deve refletir o que o Schema espera e o que o HTML envia
     this.body = {
       email: this.body.email,
-      senha: this.body.senha // Mudado de password para senha
+      senha: this.body.senha
     };
   }
 }
