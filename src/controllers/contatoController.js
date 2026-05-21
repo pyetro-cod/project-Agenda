@@ -1,7 +1,9 @@
 const Contato = require('../models/ContatoModel');
 
 exports.index = (req, res) => {
-    res.render('contato');
+    res.render('contato',{
+        contato: {}
+    });
 }
 
 exports.register = async (req, res) => {
@@ -17,11 +19,19 @@ exports.register = async (req, res) => {
 
         req.flash('success', 'Contato registrado com sucesso');;
         return req.session.save(() => {
-            return res.redirect('/contato/index');
+            return res.redirect(`/contato/index/${contato.contato._id}`);
         });
     } catch (e) {
         console.log(e)
         res.render('404');
     }
+};
 
+exports.editIndex = async function(req, res) {
+    if(!req.params.id) return res.render('404');
+
+    const user = await Contato().buscarPorId(req.params.id);
+    if(!user) return res.render('404');
+
+    res.render('contato', {Contato});
 }
